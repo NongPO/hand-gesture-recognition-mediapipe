@@ -15,6 +15,10 @@ from utils import CvFpsCalc
 from model import KeyPointClassifier
 from model import PointHistoryClassifier
 
+import asyncio
+import websockets
+import json
+from threading import Thread
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -37,8 +41,38 @@ def get_args():
 
     return args
 
+ws_data = {
+        "keypoint": "",
+        "point_history":"",
+        "brect": [0,0,0,0],
+        "finger":[ 0,0]
+    }
+
+# create handler for each connection
+
+async def handler(websocket, path):
+
+    data = await websocket.recv()
+
+    reply = f"Data recieved as:  {data}!"
+
+    await websocket.send(reply)
+
+def websocket_main():
+    start_server = websockets.serve(handler, "localhost", 8000)
+
+    asyncio.get_event_loop().run_until_complete(start_server)
+
+    asyncio.get_event_loop().run_forever()
+
+
+
 
 def main():
+
+    ## Start websocket
+    #ws_run = Thread(target=websocket_main)
+    #ws_run.start()
     # Argument parsing #################################################################
     args = get_args()
 
@@ -97,6 +131,7 @@ def main():
 
     #  ########################################################################
     mode = 0
+
 
     while True:
         fps = cvFpsCalc.get()
@@ -168,6 +203,22 @@ def main():
                     keypoint_classifier_labels[hand_sign_id],
                     point_history_classifier_labels[most_common_fg_id[0][0]],
                 )
+                # ws_data Python object (dict):
+                ws_data = {
+                    "keypoint": keypoint_classifier_labels[hand_sign_id],
+                    "point_history":point_history_classifier_labels[most_common_fg_id[0][0]],
+                    "brect": brect,
+                    "finger": landmark_list[8]
+                }
+                # convert into JSON:
+                json_data = json.dumps(ws_data)
+
+                # the result is a JSON string:
+                print(json_data)
+
+
+
+
         else:
             point_history.append([0, 0])
 
